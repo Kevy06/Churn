@@ -11,9 +11,14 @@ risco por cliente e salva tudo na pasta `resultados/`.
 
 ```bash
 pip install -r requirements.txt
-python churn.py                      # baixa a base automaticamente se não existir
-pytest -v                            # roda os testes
+python churn.py                      # executa o pipeline, gera os dados e atualiza o dashboard
+pytest -v                            # executa a suíte de 14 testes automatizados
 ```
+
+### Dashboard Interativo (CHURN WATCH)
+Para visualizar o painel executivo com os KPIs, gráficos e fila de clientes prioritários na zona crítica:
+* Basta abrir com dois cliques o arquivo `dashboard.html` no seu navegador (Chrome, Edge ou Firefox).
+* Ou executar `python gerar_dashboard.py` para regenerar os dados do painel a qualquer momento.
 
 Opções:
 

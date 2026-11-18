@@ -302,7 +302,14 @@ def importancia_variaveis(modelo: Pipeline, top: int = 15) -> pd.DataFrame:
             .sort_values("importancia", ascending=False).head(top).reset_index(drop=True))
 
 
-def gerar_score_risco(df_features: pd.DataFrame, nome_modelo: str = "Random Forest") -> pd.DataFrame:
+def gerar_score_risco(df_features: pd.DataFrame, nome_modelo: str = "Regressao Logistica") -> pd.DataFrame:
+    """Gera probabilidade de cancelamento e faixa de risco.
+    
+    Faixas harmonizadas rigorosamente com a proposta dos Blocos 1 e 2:
+    - Baixo Risco: 0.00 a 0.399 (0 a 39%) -> Acompanhamento normal
+    - Médio Risco: 0.40 a 0.699 (40 a 69%) -> Pesquisa e benefício preventivo
+    - Alto Risco: 0.70 a 1.000 (70 a 100%) -> Contato prioritário de retenção
+    """
     X, y = preparar_xy(df_features)
     modelo = criar_modelos(X)[nome_modelo]
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEMENTE)
@@ -310,7 +317,12 @@ def gerar_score_risco(df_features: pd.DataFrame, nome_modelo: str = "Random Fore
     saida = pd.DataFrame({
         COLUNA_ID: df_features[COLUNA_ID].values,
         "prob_churn": prob.round(4),
-        "faixa_risco": pd.cut(prob, bins=[-0.01, 0.33, 0.66, 1.0], labels=["Baixo", "Medio", "Alto"]),
+        "faixa_risco": pd.cut(
+            prob,
+            bins=[-0.001, 0.40, 0.70, 1.0],
+            labels=["Baixo", "Medio", "Alto"],
+            right=False,
+        ),
         "churn_real": y.values,
     })
     return saida.sort_values("prob_churn", ascending=False).reset_index(drop=True)
@@ -397,13 +409,20 @@ def executar_pipeline(
     melhor = metricas.loc[0, "modelo"]
     importancias = importancia_variaveis(modelos["Random Forest"])
     importancias.to_csv(saida / "importancia_variaveis_rf.csv", index=False)
-    score = gerar_score_risco(com_features, nome_modelo="Random Forest")
+    score = gerar_score_risco(com_features, nome_modelo="Regressao Logistica")
     score.to_csv(saida / "score_risco_clientes.csv", index=False)
 
     if gerar_graficos:
         _grafico_churn_barras(eda["contrato"], "Contract", "Churn por tipo de contrato", saida / "grafico_contrato.png")
         _grafico_churn_barras(eda["faixa_tenure"], "faixa_tenure", "Churn por faixa de tenure", saida / "grafico_tenure.png")
         _grafico_roc(modelos, X_te, y_te, saida / "grafico_roc.png")
+
+    # Atualiza o arquivo de dados do dashboard interativo
+    try:
+        import subprocess
+        subprocess.run(["python", "gerar_dashboard.py"], check=False)
+    except Exception:
+        pass
 
     resumo = {
         "diagnostico_inicial": diagnostico,
